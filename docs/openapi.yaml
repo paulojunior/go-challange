@@ -1,0 +1,346 @@
+openapi: 3.0.3
+info:
+  title: Product Catalog API
+  description: |
+    API for managing product catalog, categories, and variants.
+
+    ## Features
+    - Product listing with pagination and filters
+    - Product details with variants
+    - Category management
+    - Structured error responses
+    - Request tracing with X-Request-ID
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8080/v1
+    description: Development server
+
+tags:
+  - name: Catalog
+    description: Product catalog operations
+  - name: Categories
+    description: Category management operations
+
+paths:
+  /catalog:
+    get:
+      tags:
+        - Catalog
+      summary: List products
+      description: Retrieve a paginated list of products with optional filters
+      operationId: listProducts
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - name: offset
+          in: query
+          description: Number of items to skip (for pagination)
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            example: 0
+        - name: limit
+          in: query
+          description: Maximum number of items to return (1-100)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+            example: 10
+        - name: category
+          in: query
+          description: Filter by category code
+          required: false
+          schema:
+            type: string
+            example: CLOTHING
+        - name: priceLessThan
+          in: query
+          description: Filter by maximum price
+          required: false
+          schema:
+            type: number
+            format: decimal
+            minimum: 0
+            example: 50.00
+      responses:
+        '200':
+          description: Successful response
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/X-Request-ID'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  total:
+                    type: integer
+                    format: int64
+                    description: Total number of products matching the filter
+                    example: 100
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /catalog/{code}:
+    get:
+      tags:
+        - Catalog
+      summary: Get product by code
+      description: Retrieve detailed product information including variants
+      operationId: getProductByCode
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - name: code
+          in: path
+          description: Product code
+          required: true
+          schema:
+            type: string
+            example: PROD001
+      responses:
+        '200':
+          description: Successful response
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/X-Request-ID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /categories:
+    get:
+      tags:
+        - Categories
+      summary: List categories
+      description: Retrieve all available categories
+      operationId: listCategories
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: Successful response
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/X-Request-ID'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Categories
+      summary: Create category
+      description: Create a new category
+      operationId: createCategory
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: Category created successfully
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/X-Request-ID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Unique product code
+          example: PROD001
+        price:
+          type: number
+          format: double
+          description: Product price
+          example: 29.99
+        category:
+          $ref: '#/components/schemas/Category'
+      required:
+        - code
+        - price
+
+    ProductDetail:
+      allOf:
+        - $ref: '#/components/schemas/Product'
+        - type: object
+          properties:
+            variants:
+              type: array
+              description: Product variants
+              items:
+                $ref: '#/components/schemas/Variant'
+          required:
+            - variants
+
+    Variant:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Variant name
+          example: "Size M"
+        sku:
+          type: string
+          description: Variant SKU
+          example: SKU001A
+        price:
+          type: number
+          format: double
+          description: Variant price (inherits product price if null)
+          example: 29.99
+      required:
+        - name
+        - sku
+        - price
+
+    Category:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Unique category code
+          example: CLOTHING
+        name:
+          type: string
+          description: Category display name
+          example: Clothing
+      required:
+        - code
+        - name
+
+    CreateCategoryRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Unique category code
+          example: SHOES
+        name:
+          type: string
+          description: Category display name
+          example: Shoes
+      required:
+        - code
+        - name
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+          enum:
+            - invalid_input
+            - not_found
+            - internal_error
+          example: invalid_input
+        message:
+          type: string
+          description: Human-readable error message
+          example: Invalid input provided
+      required:
+        - code
+        - message
+
+  responses:
+    BadRequest:
+      description: Bad request
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/X-Request-ID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: invalid_input
+            message: Invalid input provided
+
+    NotFound:
+      description: Resource not found
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/X-Request-ID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: not_found
+            message: Resource not found
+
+    InternalError:
+      description: Internal server error
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/X-Request-ID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: internal_error
+            message: An internal error occurred
+
+  parameters:
+    RequestID:
+      name: X-Request-ID
+      in: header
+      description: Unique request identifier for tracing
+      required: false
+      schema:
+        type: string
+        format: uuid
+        example: 550e8400-e29b-41d4-a716-446655440000
+
+  headers:
+    X-Request-ID:
+      description: Request identifier for tracing
+      schema:
+        type: string
+        format: uuid
+        example: 550e8400-e29b-41d4-a716-446655440000
+
+security: []
