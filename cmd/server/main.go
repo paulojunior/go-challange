@@ -51,7 +51,11 @@ func main() {
 		logger.Error("Failed to connect to database", "error", err)
 		os.Exit(1)
 	}
-	defer close()
+	defer func() {
+		if err := close(); err != nil {
+			logger.Error("Failed to close database", "error", err)
+		}
+	}()
 	logger.Info("Database connected successfully")
 
 	// Initialize repositories.

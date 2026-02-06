@@ -55,13 +55,13 @@ go test ./test/e2e/... -v -run TestCategoriesEndpoint_CreateCategory
 
 ### Catalog Endpoints
 
-**GET /catalog**
+**GET /v1/catalog**
 - ✓ List all products with default pagination
 - ✓ List products with custom pagination (offset, limit)
 - ✓ Limit validation (min/max boundaries)
 - ✓ Products include categories
 
-**GET /catalog/{code}**
+**GET /v1/catalog/{code}**
 - ✓ Get product by valid code
 - ✓ Product details include category
 - ✓ Product details include variants
@@ -74,12 +74,12 @@ go test ./test/e2e/... -v -run TestCategoriesEndpoint_CreateCategory
 
 ### Categories Endpoints
 
-**GET /categories**
+**GET /v1/categories**
 - ✓ List all categories
 - ✓ List categories when empty
 - ✓ Categories linked to products
 
-**POST /categories**
+**POST /v1/categories**
 - ✓ Create new category
 - ✓ Validation: missing code (400)
 - ✓ Validation: missing name (400)

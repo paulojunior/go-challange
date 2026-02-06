@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -41,6 +42,11 @@ func SetupTestServer(t *testing.T) *TestServer {
 		t.Fatalf("failed to connect database: %v", err)
 	}
 
+	// Drop existing tables to ensure clean state.
+	if err := db.Migrator().DropTable(&models.Variant{}, &models.Product{}, &models.Category{}); err != nil {
+		t.Logf("warning: failed to drop tables (may not exist): %v", err)
+	}
+
 	// Auto-migrate tables.
 	if err := db.AutoMigrate(&models.Category{}, &models.Product{}, &models.Variant{}); err != nil {
 		t.Fatalf("failed to auto-migrate tables: %v", err)
@@ -60,10 +66,10 @@ func SetupTestServer(t *testing.T) *TestServer {
 
 	// Set up routing.
 	mux := http.NewServeMux()
-	mux.Handle("GET /catalog", api.ErrorHandler(catHandler.HandleGet))
-	mux.Handle("GET /catalog/{code}", api.ErrorHandler(catHandler.HandleGetByCode))
-	mux.Handle("GET /categories", api.ErrorHandler(categoriesHandler.HandleGet))
-	mux.Handle("POST /categories", api.ErrorHandler(categoriesHandler.HandlePost))
+	mux.Handle("GET /v1/catalog", api.ErrorHandler(catHandler.HandleGet))
+	mux.Handle("GET /v1/catalog/{code}", api.ErrorHandler(catHandler.HandleGetByCode))
+	mux.Handle("GET /v1/categories", api.ErrorHandler(categoriesHandler.HandleGet))
+	mux.Handle("POST /v1/categories", api.ErrorHandler(categoriesHandler.HandlePost))
 
 	// Create test server.
 	server := httptest.NewServer(mux)
@@ -73,7 +79,9 @@ func SetupTestServer(t *testing.T) *TestServer {
 		DB:     db,
 		CleanupFn: func() {
 			server.Close()
-			cleanup()
+			if err := cleanup(); err != nil {
+				log.Printf("failed to cleanup database: %v", err)
+			}
 		},
 	}
 }
